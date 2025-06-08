@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Control Panel</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f8ff;
+      padding: 30px;
+    }
+    .panel {
+      max-width: 700px;
+      margin: auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #b3d4fc;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+    }
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+    }
+    a {
+      color: #0044aa;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>Welcome Admin!</h2>
+    <input type="text" id="title" placeholder="Notice Title (required)">
+    <input type="text" id="pdfUrl" placeholder="PDF Link (Google Drive shared link)">
+    <input type="text" id="optionalTitle" placeholder="Optional Link Title (optional)">
+    <input type="url" id="optionalUrl" placeholder="Optional Link URL (optional)">
+    <button onclick="uploadNotice()">Upload Notice</button>
+    <button onclick="logout()">Logout</button>
+    <p id="uploadStatus"></p>
+
+    <h3>Uploaded Notices</h3>
+    <table id="noticeTable">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>PDF</th>
+          <th>Optional Link</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    if (sessionStorage.getItem('admin') !== 'loggedIn') {
+      window.location.href = "https://sites.google.com/view/ddeebilaspur/adminlogin";
+    }
+
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxNw52WcAlnZsbwcTMc6geSrHkh7Cnd3FePahVFD7f28L-7QIqFgCv2xOCfY80MLlpL/exec";
+
+    function uploadNotice() {
+      const title = document.getElementById('title').value.trim();
+      const pdfUrl = document.getElementById('pdfUrl').value.trim();
+      const optionalTitle = document.getElementById('optionalTitle').value.trim();
+      const optionalUrl = document.getElementById('optionalUrl').value.trim();
+      const status = document.getElementById('uploadStatus');
+
+      if (!title || !pdfUrl) {
+        status.textContent = 'Please enter title and PDF URL.';
+        return;
+      }
+
+      fetch(scriptURL, {
+        method: 'POST',
+        body: new URLSearchParams({
+          action: 'uploadNotice',
+          title,
+          pdfUrl,
+          optionalTitle,
+          optionalUrl
+        })
+      })
+      .then(res => res.text())
+      .then(resp => {
+        if (resp === 'uploaded') {
+          status.textContent = 'Notice uploaded successfully!';
+          fetchNotices();
+        } else {
+          status.textContent = 'Failed to upload. Try again.';
+        }
+      });
+    }
+
+    function fetchNotices() {
+      fetch(scriptURL, {
+        method: 'POST',
+        body: new URLSearchParams({ action: 'getNotices' })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector('#noticeTable tbody');
+        tbody.innerHTML = '';
+        data.forEach((row, index) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row[0]}</td>
+            <td><a href="${row[1]}" target="_blank">Open PDF</a></td>
+            <td>${row[2] ? `<a href="${row[3]}" target="_blank">${row[2]}</a>` : '-'}</td>
+            <td><button onclick="deleteNotice(${index + 2})">Delete</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    function deleteNotice(row) {
+      fetch(scriptURL, {
+        method: 'POST',
+        body: new URLSearchParams({ action: 'deleteNotice', row })
+      })
+      .then(res => res.text())
+      .then(() => fetchNotices());
+    }
+
+    function logout() {
+      sessionStorage.removeItem('admin');
+      window.location.href = "https://sites.google.com/view/ddeebilaspur/adminlogin";
+    }
+
+    window.onload = fetchNotices;
+  </script>
+</body>
+</html>
